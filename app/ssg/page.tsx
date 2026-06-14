@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dashboardData from "../data/dashbord.json";
 
 type dashboardInfo = {
   id: number;
@@ -11,15 +12,8 @@ type dashboardInfo = {
   growth: number;
 };
 
-async function getDashboardData() {
-  const data = await fetch("http://localhost:3000/api/dashboard", {
-    cache: "no-store",
-  }); // cache:no-store -> creates it SSR, fresh every request.
-  return data.json();
-}
-
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const data = dashboardData;
   if (data.length === 0) return <div>Loading...</div>;
   return (
     <div className="min-h-screen bg-gray-100 p-8">

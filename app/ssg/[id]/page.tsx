@@ -1,3 +1,4 @@
+import dashboardData from "../../data/dashbord.json";
 type dashboardInfo = {
   id: number;
   name: string;
@@ -9,20 +10,14 @@ type dashboardInfo = {
   growth: number;
 };
 
-async function getDashboardData(id: string) {
-  const data = await fetch(`http://localhost:3000/api/dashboard/${id}`, {
-    cache: "force-cache", //Explicit SSG in Next.js 15
-  });
-  console.log("data",data);
-  return data.json();
+function getDashboardData(id: string): dashboardInfo | undefined {
+  const data = dashboardData.find((item: dashboardInfo) => item.id === parseInt(id));
+  return data;
 }
 
 // Inbuilt method to tell Next.js which slugs to pre-build at build time
-export async function generateStaticParams() {
-  const posts: dashboardInfo[] = await fetch(
-    "http://localhost:3000/api/dashboard",
-  ).then((r) => r.json());
-  return posts.map((post: dashboardInfo) => ({
+export function generateStaticParams() {
+  return dashboardData.map((post: dashboardInfo) => ({
     id: post.id.toString(),
   }));
 }
@@ -33,7 +28,16 @@ export default async function BlogPost({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const post = await getDashboardData(id);
+  const post = getDashboardData(id);
+
+  if (!post) {
+    return (
+      <article className="mx-auto max-w-5xl space-y-8 p-6 sm:p-10">
+        <h1 className="text-xl">Dashboard not found</h1>
+      </article>
+    );
+  }
+
   return (
     <article className="mx-auto max-w-5xl space-y-8 p-6 sm:p-10">
       <h1 className="text-xl">Static Site Generation</h1>
