@@ -1,3 +1,4 @@
+import dashboardData from "../../data/dashbord.json";
 type dashboardInfo = {
   id: number;
   name: string;
@@ -13,16 +14,20 @@ type paramsType = {
   params: Promise<{ id: number }>;
 };
 
-export async function getDashboardData(id: number) {
-  const res = await fetch(`http://localhost:3000/api/dashboard/${id}`, {
-    next: { revalidate: 60 }, // ISR - Render new HTML with udpated data after 60 sec
-  });
-  return res.json();
+export function getDashboardData(id: number): dashboardInfo | undefined {
+  return dashboardData.find((item: dashboardInfo) => item.id === Number(id));
 }
 
 export default async function DashboardPage({ params }: paramsType) {
   const { id } = await params;
-  const data: dashboardInfo = await getDashboardData(id);
+  const data = getDashboardData(id);
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+        <h1 className="text-4xl font-bold text-slate-900 mb-12 text-center">Dashboard Not Found</h1>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
         <h1 className="text-4xl font-bold text-slate-900 mb-12 text-center">Incremental Site Regeneration</h1>
