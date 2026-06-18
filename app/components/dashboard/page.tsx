@@ -1,4 +1,3 @@
-import CSRDashboard from "../../csr/page";
 import Link from "next/link";
 
 export default function Dashboard() {
@@ -24,6 +23,13 @@ export default function Dashboard() {
               className="text-slate-600 hover:text-blue-600 font-medium transition"
             >
               SSR
+            </Link>
+
+            <Link
+              href="/ssg"
+              className="text-slate-600 hover:text-blue-600 font-medium transition"
+            >
+              SSG
             </Link>
 
             <Link

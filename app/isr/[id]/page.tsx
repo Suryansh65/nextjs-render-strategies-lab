@@ -1,5 +1,10 @@
+import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import dashboardData from "../../data/dashbord.json";
-type dashboardInfo = {
+import { WindowSelector, ForceRevalidateButton } from "../ISRControls";
+import CountdownTimer from "../CountdownTimer";
+
+type DashboardInfo = {
   id: number;
   name: string;
   date: string;
@@ -10,47 +15,187 @@ type dashboardInfo = {
   growth: number;
 };
 
-type paramsType = {
-  params: Promise<{ id: number }>;
-};
-
-export function getDashboardData(id: number): dashboardInfo | undefined {
-  return dashboardData.find((item: dashboardInfo) => item.id === Number(id));
+function getCachedData(numericId: number, windowSeconds: number) {
+  return unstable_cache(
+    async () => {
+      const item = dashboardData.find(
+        (d: DashboardInfo) => d.id === numericId
+      ) as DashboardInfo | undefined;
+      return {
+        data: item ?? null,
+        generatedAt: new Date().toISOString(),
+      };
+    },
+    // Cache key includes both id and window so different windows = separate entries
+    [`isr-dashboard-${numericId}-w${windowSeconds}`],
+    {
+      revalidate: windowSeconds,
+      tags: [`isr-${numericId}`],
+    }
+  )();
 }
 
-export default async function DashboardPage({ params }: paramsType) {
+export default async function ISRDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ window?: string }>;
+}) {
   const { id } = await params;
-  const data = getDashboardData(id);
+  const { window: windowStr = "30" } = await searchParams;
+
+  const numericId = parseInt(id);
+  const windowSeconds = Math.min(Math.max(parseInt(windowStr) || 30, 5), 300);
+
+  const { data, generatedAt } = await getCachedData(numericId, windowSeconds);
+
   if (!data) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-12 text-center">Dashboard Not Found</h1>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl text-slate-600">Dashboard not found</p>
       </div>
     );
   }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-12 text-center">Incremental Site Regeneration</h1>
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-8">{data.name}</h1>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-lg font-semibold text-slate-600">Region:</span>
-            <span className="text-lg text-slate-900 font-medium">{data.region}</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-8">
+      <div className="mx-auto max-w-3xl">
+        <div className="flex items-center gap-4 mb-6">
+          <Link
+            href="/isr"
+            className="text-sm text-slate-500 hover:text-slate-700 transition"
+          >
+            ← ISR List
+          </Link>
+          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-bold">
+            ISR
+          </span>
+        </div>
+
+        <h1 className="text-4xl font-bold text-slate-900 mb-6">
+          Incremental Static Regeneration
+        </h1>
+
+        {/* ISR Controls + Metrics */}
+        <div className="rounded-2xl border border-purple-200 bg-white p-6 shadow-sm mb-6">
+          <WindowSelector current={windowSeconds} dashboardId={id} />
+
+          <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+                Data generated at
+              </p>
+              <p className="font-mono text-purple-700 font-medium">
+                {new Date(generatedAt).toLocaleString()}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Refresh repeatedly — this stays frozen until cache expires
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                Cache expires in
+              </p>
+              <CountdownTimer
+                windowSeconds={windowSeconds}
+                generatedAt={generatedAt}
+              />
+            </div>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-lg font-semibold text-slate-600">Revenue:</span>
-            <span className="text-lg text-green-600 font-bold">₹{data.revenue.toLocaleString()}</span>
+
+          <ForceRevalidateButton tag={`isr-${numericId}`} />
+
+          <p className="text-xs text-slate-400 mt-3 text-center">
+            Force-revalidate marks the cache as stale — the next refresh
+            generates fresh data
+          </p>
+        </div>
+
+        {/* Dashboard detail */}
+        <header className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm mb-6">
+          <p className="text-sm uppercase tracking-widest text-slate-500">
+            {data.region} dashboard
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {data.name}
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Updated on {new Date(data.date).toLocaleDateString()}
+          </p>
+        </header>
+
+        <div className="grid gap-4 sm:grid-cols-3 mb-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-slate-500">
+              Revenue
+            </p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">
+              ₹{data.revenue.toLocaleString()}
+            </p>
           </div>
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <span className="text-lg font-semibold text-slate-600">Users:</span>
-            <span className="text-lg text-blue-600 font-bold">{data.users.toLocaleString()}</span>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-slate-500">
+              Active Users
+            </p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">
+              {data.users.toLocaleString()}
+            </p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold text-slate-600">Growth:</span>
-            <span className="text-lg text-purple-600 font-bold">{data.growth}%</span>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-widest text-slate-500">
+              Growth
+            </p>
+            <p
+              className={`mt-3 text-3xl font-semibold ${
+                data.growth > 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {(data.growth * 100).toFixed(1)}%
+            </p>
           </div>
         </div>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">
+            About this demo
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            This page uses{" "}
+            <code className="font-mono bg-slate-100 px-1 rounded">
+              unstable_cache
+            </code>{" "}
+            with a{" "}
+            <span className="font-semibold text-purple-700">
+              {windowSeconds}s
+            </span>{" "}
+            revalidation window to simulate ISR behaviour. The data timestamp
+            stays frozen between requests and only updates after the window
+            expires. In production, you would use{" "}
+            <code className="font-mono bg-slate-100 px-1 rounded">
+              export const revalidate = {windowSeconds}
+            </code>{" "}
+            on the page for full route-level ISR.
+          </p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-widest text-slate-500">
+                Dashboard ID
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">
+                {data.id}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-slate-50 p-5">
+              <p className="text-xs uppercase tracking-widest text-slate-500">
+                Slug
+              </p>
+              <p className="mt-2 text-lg font-semibold text-slate-900 font-mono">
+                {data.slug}
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
