@@ -1,7 +1,9 @@
-type dashboardInfo = {
+import {getDashboardDataMOCK} from '@/app/lib/dashboard';
+export type dashboardInfo = {
   id: number;
   name: string;
   date: string;
+  slug:string;
   revenue: number;
   users: number;
   region: string;
@@ -9,10 +11,12 @@ type dashboardInfo = {
 };
 
 async function getDashboardData() {
-  const data = await fetch("http://localhost:3000/api/dashboard", {
-    cache: "no-store",
-  }); // cache:no-store -> creates it SSR, fresh every request.
-  return data.json();
+  // const data = await fetch("http://localhost:3000/api/dashboard", {
+  //   cache: "no-store",
+  // }); 
+  // cache:no-store -> creates it SSR, fresh every request.
+  const data = await getDashboardDataMOCK();
+  return data;
 }
 
 export default async function DashboardPage() {

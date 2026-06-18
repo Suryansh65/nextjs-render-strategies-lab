@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getDashboardDataMOCK } from "../lib/dashboard";
 
 type dashboardInfo = {
   id: number;
@@ -12,10 +13,11 @@ type dashboardInfo = {
 };
 
 export async function getDashboardData() {
-  const data = await fetch("http://localhost:3000/api/dashboard", {
-    cache: "no-store",
-  });
-  return data.json();
+  // const data = await fetch("http://localhost:3000/api/dashboard", {
+  //   cache: "no-store",
+  // });
+  const data = await getDashboardDataMOCK();
+  return data;
 }
 
 export default async function DashboardPage() {
