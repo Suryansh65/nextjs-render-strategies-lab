@@ -9,6 +9,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid tag" }, { status: 400 });
   }
 
-  revalidateTag(tag);
+  // 'max' = stale-while-revalidate: serve stale content while fresh data generates in background
+  revalidateTag(tag, "max");
   return NextResponse.json({ revalidated: true, tag });
 }
