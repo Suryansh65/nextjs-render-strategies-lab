@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import dashboardData from "../../data/dashbord.json";
 import { WindowSelector, ForceRevalidateButton } from "../ISRControls";
 import CountdownTimer from "../CountdownTimer";
@@ -15,19 +16,36 @@ type DashboardInfo = {
   growth: number;
 };
 
-function getCachedData(numericId: number, windowSeconds: number) {
+// --- Production: unstable_cache (uses Vercel's shared Data Cache across serverless instances) ---
+// One stable wrapper per window size, created once at module scope.
+const prodFetchers = new Map<number, (id: number) => Promise<{ data: DashboardInfo | null; generatedAt: string }>>();
+
+function getProdCachedData(numericId: number, windowSeconds: number) {
+  if (!prodFetchers.has(windowSeconds)) {
+    prodFetchers.set(
+      windowSeconds,
+      unstable_cache(
+        async (id: number) => {
+          const item = dashboardData.find((d: DashboardInfo) => d.id === id) as DashboardInfo | undefined;
+          return { data: item ?? null, generatedAt: new Date().toISOString() };
+        },
+        [`isr-dashboard-w${windowSeconds}`],
+        { revalidate: windowSeconds, tags: [`isr-${windowSeconds}`] }
+      )
+    );
+  }
+  return prodFetchers.get(windowSeconds)!(numericId);
+}
+
+// --- Dev: module-level Map with manual TTL (single process, no serverless cold starts) ---
+function getDevCachedData(numericId: number, windowSeconds: number) {
   const key = `${numericId}-${windowSeconds}`;
   const now = Date.now();
   const entry = isrCache.get(key);
 
-  if (entry && now < entry.expiresAt) {
-    return entry;
-  }
+  if (entry && now < entry.expiresAt) return entry;
 
-  const item = dashboardData.find(
-    (d: DashboardInfo) => d.id === numericId
-  ) as DashboardInfo | undefined;
-
+  const item = dashboardData.find((d: DashboardInfo) => d.id === numericId) as DashboardInfo | undefined;
   const fresh: CacheEntry = {
     data: item ?? null,
     generatedAt: new Date().toISOString(),
@@ -35,6 +53,12 @@ function getCachedData(numericId: number, windowSeconds: number) {
   };
   isrCache.set(key, fresh);
   return fresh;
+}
+
+function getCachedData(numericId: number, windowSeconds: number) {
+  return process.env.NODE_ENV === "production"
+    ? getProdCachedData(numericId, windowSeconds)
+    : getDevCachedData(numericId, windowSeconds);
 }
 
 export default async function ISRDetailPage({
