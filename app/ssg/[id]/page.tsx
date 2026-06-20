@@ -1,5 +1,6 @@
 import Link from "next/link";
 import dashboardData from "../../data/dashbord.json";
+import BuildBanner from "../BuildBanner";
 
 type DashboardInfo = {
   id: number;
@@ -31,11 +32,6 @@ export default async function SSGDetailPage({
 }) {
   const { id } = await params;
   const post = getDashboardData(id);
-  const isDev = process.env.NODE_ENV === "development";
-
-  // In production this runs once at build time — frozen in the pre-generated HTML.
-  // In development Next.js re-renders on every request, so the timestamp changes.
-  const builtAt = new Date().toLocaleString();
 
   if (!post) {
     return (
@@ -60,44 +56,7 @@ export default async function SSGDetailPage({
           </span>
         </div>
 
-        {isDev && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 mb-4 text-sm text-amber-800">
-            <span className="font-semibold">⚠ Development mode:</span> Next.js
-            re-renders every page on every request in dev, so the timestamp
-            below changes on refresh. Run{" "}
-            <code className="font-mono bg-amber-100 px-1 rounded">
-              next build &amp;&amp; next start
-            </code>{" "}
-            to see the timestamp frozen at build time.
-          </div>
-        )}
-
-        {/* Build-time proof banner */}
-        <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5 mb-6 flex flex-wrap gap-6 text-sm">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-1">
-              Rendered in
-            </p>
-            <p className="font-bold text-teal-800">Server (build time only)</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-1">
-              Built at
-            </p>
-            <p className="font-mono text-slate-800">{builtAt}</p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              This is frozen — refresh as many times as you like
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-1">
-              Pre-built via
-            </p>
-            <p className="font-mono text-slate-700 text-xs bg-white px-2 py-1 rounded border border-teal-200">
-              generateStaticParams()
-            </p>
-          </div>
-        </div>
+        <BuildBanner pageId={id} />
 
         {/* Dashboard detail */}
         <header className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm mb-6">
