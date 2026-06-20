@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import dashboardData from "../../data/dashbord.json";
 import { WindowSelector, ForceRevalidateButton } from "../ISRControls";
 import CountdownTimer from "../CountdownTimer";
-import { isrCache, type CacheEntry } from "./cache";
 
 type DashboardInfo = {
   id: number;
@@ -15,51 +13,6 @@ type DashboardInfo = {
   region: string;
   growth: number;
 };
-
-// --- Production: unstable_cache (uses Vercel's shared Data Cache across serverless instances) ---
-// One stable wrapper per window size, created once at module scope.
-const prodFetchers = new Map<number, (id: number) => Promise<{ data: DashboardInfo | null; generatedAt: string }>>();
-
-function getProdCachedData(numericId: number, windowSeconds: number) {
-  if (!prodFetchers.has(windowSeconds)) {
-    prodFetchers.set(
-      windowSeconds,
-      unstable_cache(
-        async (id: number) => {
-          const item = dashboardData.find((d: DashboardInfo) => d.id === id) as DashboardInfo | undefined;
-          return { data: item ?? null, generatedAt: new Date().toISOString() };
-        },
-        [`isr-dashboard-w${windowSeconds}`],
-        { revalidate: windowSeconds, tags: [`isr-${windowSeconds}`] }
-      )
-    );
-  }
-  return prodFetchers.get(windowSeconds)!(numericId);
-}
-
-// --- Dev: module-level Map with manual TTL (single process, no serverless cold starts) ---
-function getDevCachedData(numericId: number, windowSeconds: number) {
-  const key = `${numericId}-${windowSeconds}`;
-  const now = Date.now();
-  const entry = isrCache.get(key);
-
-  if (entry && now < entry.expiresAt) return entry;
-
-  const item = dashboardData.find((d: DashboardInfo) => d.id === numericId) as DashboardInfo | undefined;
-  const fresh: CacheEntry = {
-    data: item ?? null,
-    generatedAt: new Date().toISOString(),
-    expiresAt: now + windowSeconds * 1000,
-  };
-  isrCache.set(key, fresh);
-  return fresh;
-}
-
-function getCachedData(numericId: number, windowSeconds: number) {
-  return process.env.NODE_ENV === "production"
-    ? getProdCachedData(numericId, windowSeconds)
-    : getDevCachedData(numericId, windowSeconds);
-}
 
 export default async function ISRDetailPage({
   params,
@@ -74,7 +27,9 @@ export default async function ISRDetailPage({
   const numericId = parseInt(id);
   const windowSeconds = Math.min(Math.max(parseInt(windowStr) || 30, 5), 300);
 
-  const { data, generatedAt } = await getCachedData(numericId, windowSeconds);
+  const data = dashboardData.find(
+    (d: DashboardInfo) => d.id === numericId
+  ) as DashboardInfo | undefined;
 
   if (!data) {
     return (
@@ -83,6 +38,10 @@ export default async function ISRDetailPage({
       </div>
     );
   }
+
+  // Always fresh from server — the client's localStorage is what creates the
+  // "frozen until expiry" illusion, so this works on any serverless platform.
+  const serverGeneratedAt = new Date().toISOString();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50 p-8">
@@ -109,12 +68,6 @@ export default async function ISRDetailPage({
 
           <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-                Data generated at
-              </p>
-              <p className="font-mono text-purple-700 font-medium">
-                {new Date(generatedAt).toLocaleString()}
-              </p>
               <p className="text-xs text-slate-400 mt-1">
                 Refresh repeatedly — this stays frozen until cache expires
               </p>
@@ -125,16 +78,16 @@ export default async function ISRDetailPage({
               </p>
               <CountdownTimer
                 windowSeconds={windowSeconds}
-                generatedAt={generatedAt}
+                serverGeneratedAt={serverGeneratedAt}
+                cacheKey={`${id}-${windowSeconds}`}
               />
             </div>
           </div>
 
-          <ForceRevalidateButton tag={`${numericId}`} />
+          <ForceRevalidateButton cacheKey={`${id}-${windowSeconds}`} />
 
           <p className="text-xs text-slate-400 mt-3 text-center">
-            Force-revalidate marks the cache as stale — the next refresh
-            generates fresh data
+            Force-revalidate clears the local cache — the next refresh shows a fresh timestamp
           </p>
         </div>
 
@@ -187,21 +140,16 @@ export default async function ISRDetailPage({
             About this demo
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            This page uses{" "}
-            <code className="font-mono bg-slate-100 px-1 rounded">
-              unstable_cache
-            </code>{" "}
-            with a{" "}
-            <span className="font-semibold text-purple-700">
-              {windowSeconds}s
-            </span>{" "}
-            revalidation window to simulate ISR behaviour. The data timestamp
-            stays frozen between requests and only updates after the window
-            expires. In production, you would use{" "}
+            This page simulates ISR with a{" "}
+            <span className="font-semibold text-purple-700">{windowSeconds}s</span>{" "}
+            revalidation window. The frozen timestamp is stored in your browser
+            and stays fixed until the window expires — just like a real ISR page
+            serves the same static snapshot until its revalidation window passes.
+            In production you would use{" "}
             <code className="font-mono bg-slate-100 px-1 rounded">
               export const revalidate = {windowSeconds}
             </code>{" "}
-            on the page for full route-level ISR.
+            on the page for true route-level ISR.
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl bg-slate-50 p-5">

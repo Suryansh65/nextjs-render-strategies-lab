@@ -40,17 +40,13 @@ export function WindowSelector({
   );
 }
 
-export function ForceRevalidateButton({ tag }: { tag: string }) {
+export function ForceRevalidateButton({ cacheKey }: { cacheKey: string }) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
 
-  const handleClick = async () => {
+  const handleClick = () => {
     setStatus("loading");
-    await fetch("/api/revalidate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tag }),
-    });
+    localStorage.removeItem(`isr-cache-${cacheKey}`);
     setStatus("done");
     setTimeout(() => {
       router.refresh();
