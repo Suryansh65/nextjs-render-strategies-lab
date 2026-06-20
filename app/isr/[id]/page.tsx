@@ -15,24 +15,30 @@ type DashboardInfo = {
   growth: number;
 };
 
+// unstable_cache must live at module scope so Next.js can track revalidation.
+// We keep one wrapper per (windowSeconds) value so each window gets its own TTL.
+const cachedFetchers = new Map<
+  number,
+  (id: number) => Promise<{ data: DashboardInfo | null; generatedAt: string }>
+>();
+
 function getCachedData(numericId: number, windowSeconds: number) {
-  return unstable_cache(
-    async () => {
-      const item = dashboardData.find(
-        (d: DashboardInfo) => d.id === numericId
-      ) as DashboardInfo | undefined;
-      return {
-        data: item ?? null,
-        generatedAt: new Date().toISOString(),
-      };
-    },
-    // Cache key includes both id and window so different windows = separate entries
-    [`isr-dashboard-${numericId}-w${windowSeconds}`],
-    {
-      revalidate: windowSeconds,
-      tags: [`isr-${numericId}`],
-    }
-  )();
+  if (!cachedFetchers.has(windowSeconds)) {
+    cachedFetchers.set(
+      windowSeconds,
+      unstable_cache(
+        async (id: number) => {
+          const item = dashboardData.find(
+            (d: DashboardInfo) => d.id === id
+          ) as DashboardInfo | undefined;
+          return { data: item ?? null, generatedAt: new Date().toISOString() };
+        },
+        [`isr-dashboard-w${windowSeconds}`],
+        { revalidate: windowSeconds, tags: [`isr-w${windowSeconds}`] }
+      )
+    );
+  }
+  return cachedFetchers.get(windowSeconds)!(numericId);
 }
 
 export default async function ISRDetailPage({
@@ -104,7 +110,7 @@ export default async function ISRDetailPage({
             </div>
           </div>
 
-          <ForceRevalidateButton tag={`isr-${numericId}`} />
+          <ForceRevalidateButton tag={`isr-w${windowSeconds}`} />
 
           <p className="text-xs text-slate-400 mt-3 text-center">
             Force-revalidate marks the cache as stale — the next refresh

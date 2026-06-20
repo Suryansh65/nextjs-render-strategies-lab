@@ -29,7 +29,7 @@ export default function CountdownTimer({
   if (remaining === 0) {
     return (
       <span className="text-orange-600 font-semibold text-sm">
-        Cache expired — refresh to regenerate
+        Cache expired — refresh once to trigger regen, then refresh again to see fresh data
       </span>
     );
   }
