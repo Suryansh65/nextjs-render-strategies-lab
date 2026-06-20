@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import dashboardData from "../../data/dashbord.json";
 import { WindowSelector, ForceRevalidateButton } from "../ISRControls";
 import CountdownTimer from "../CountdownTimer";
+import { isrCache, type CacheEntry } from "./cache";
 
 type DashboardInfo = {
   id: number;
@@ -15,30 +15,26 @@ type DashboardInfo = {
   growth: number;
 };
 
-// unstable_cache must live at module scope so Next.js can track revalidation.
-// We keep one wrapper per (windowSeconds) value so each window gets its own TTL.
-const cachedFetchers = new Map<
-  number,
-  (id: number) => Promise<{ data: DashboardInfo | null; generatedAt: string }>
->();
-
 function getCachedData(numericId: number, windowSeconds: number) {
-  if (!cachedFetchers.has(windowSeconds)) {
-    cachedFetchers.set(
-      windowSeconds,
-      unstable_cache(
-        async (id: number) => {
-          const item = dashboardData.find(
-            (d: DashboardInfo) => d.id === id
-          ) as DashboardInfo | undefined;
-          return { data: item ?? null, generatedAt: new Date().toISOString() };
-        },
-        [`isr-dashboard-w${windowSeconds}`],
-        { revalidate: windowSeconds, tags: [`isr-w${windowSeconds}`] }
-      )
-    );
+  const key = `${numericId}-${windowSeconds}`;
+  const now = Date.now();
+  const entry = isrCache.get(key);
+
+  if (entry && now < entry.expiresAt) {
+    return entry;
   }
-  return cachedFetchers.get(windowSeconds)!(numericId);
+
+  const item = dashboardData.find(
+    (d: DashboardInfo) => d.id === numericId
+  ) as DashboardInfo | undefined;
+
+  const fresh: CacheEntry = {
+    data: item ?? null,
+    generatedAt: new Date().toISOString(),
+    expiresAt: now + windowSeconds * 1000,
+  };
+  isrCache.set(key, fresh);
+  return fresh;
 }
 
 export default async function ISRDetailPage({
@@ -110,7 +106,7 @@ export default async function ISRDetailPage({
             </div>
           </div>
 
-          <ForceRevalidateButton tag={`isr-w${windowSeconds}`} />
+          <ForceRevalidateButton tag={`${numericId}`} />
 
           <p className="text-xs text-slate-400 mt-3 text-center">
             Force-revalidate marks the cache as stale — the next refresh

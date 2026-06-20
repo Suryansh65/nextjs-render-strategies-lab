@@ -1,5 +1,5 @@
-import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { isrCache } from "../../isr/[id]/cache";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -9,7 +9,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid tag" }, { status: 400 });
   }
 
-  // 'max' = stale-while-revalidate: serve stale content while fresh data generates in background
-  revalidateTag(tag, "max");
+  // Delete all cache entries for this dashboard id (across all window sizes)
+  for (const key of isrCache.keys()) {
+    if (key.startsWith(tag + "-")) isrCache.delete(key);
+  }
+
   return NextResponse.json({ revalidated: true, tag });
 }
