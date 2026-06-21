@@ -1,5 +1,4 @@
 # 🧪 Next.js Rendering Strategies Lab
-
 A hands-on reference project demonstrating all four core rendering strategies in **Next.js 14 App Router** — SSR, SSG, ISR, and CSR — with real data, live UI, and deployed on Vercel.
 
 🔗 **Live Demo:** [nextjs-render-strategies-lab-psi.vercel.app](https://nextjs-render-strategies-lab-psi.vercel.app)
@@ -48,6 +47,26 @@ This lab makes each strategy tangible by building a dedicated page for each — 
 | Vercel | Deployment |
 
 ---
+
+## 📸 Screenshots
+
+### 🏠 Home — Strategy Overview
+<img width="1522" height="697" alt="Screenshot 2026-06-21 125226" src="https://github.com/user-attachments/assets/2748bc4f-3b0a-451a-be0f-3d492dc86613" />
+
+### ⚡ SSR — Server Side Rendering
+<img width="1495" height="692" alt="Screenshot 2026-06-21 125253" src="https://github.com/user-attachments/assets/b985f5e7-0023-4d82-95b6-cf6878129dea" />
+
+
+### 🏗️ SSG — Static Site Generation
+<img width="1512" height="701" alt="Screenshot 2026-06-21 125300" src="https://github.com/user-attachments/assets/fb9f76f3-28bb-4c5f-9f43-713eb970e97e" />
+
+
+### 🔄 ISR — Incremental Static Regeneration
+<img width="1487" height="702" alt="Screenshot 2026-06-21 125307" src="https://github.com/user-attachments/assets/28d7286e-052b-4376-ab02-406bcd52fd49" />
+
+
+### 💻 CSR — Client Side Rendering
+<img width="1457" height="686" alt="Screenshot 2026-06-21 125246" src="https://github.com/user-attachments/assets/27cfe1b6-1c7a-42a3-a5c0-1116290becb4" />
 
 ## 📁 Project Structure
 app/
