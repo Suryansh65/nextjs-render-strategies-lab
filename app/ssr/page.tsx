@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getDashboardDataMOCK } from "@/app/lib/dashboard";
 import StrategyBanner from "@/app/components/StrategyBanner";
 import DelayControl from "./DelayControl";
+import RenderedAt from "./RenderedAt";
 
 async function getData(delayMs: number) {
   if (delayMs > 0) {
@@ -19,8 +20,8 @@ export default async function SSRPage({
   const delay = Math.min(Math.max(parseInt(delayStr) || 0, 0), 3000);
 
   const data = await getData(delay);
-  // This timestamp is stamped on the server for every request — refresh to see it change
-  const renderedAt = new Date().toLocaleString();
+  // ISO string from server — formatted on the client so it uses the user's local timezone
+  const renderedAt = new Date().toISOString();
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -54,7 +55,7 @@ export default async function SSRPage({
               <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">
                 This page rendered at
               </p>
-              <p className="font-mono text-slate-800">{renderedAt}</p>
+              <RenderedAt isoString={renderedAt} />
               <p className="text-xs text-slate-400 mt-0.5">
                 Refresh the page — this timestamp changes every time
               </p>
